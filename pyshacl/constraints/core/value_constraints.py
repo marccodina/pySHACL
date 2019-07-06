@@ -84,14 +84,14 @@ class ClassConstraintComponent(ConstraintComponent):
                                    "Attempting to match Literal node {} to class of {} will fail."
                                    .format(v, class_rule))
                 else:
-                    objs = [a[0] for a in target_graph.query(f"""
-                                            SELECT ?superclass
-                                            WHERE {{
-                                              {target_graph.qname(v)} rdf:type ?t .
-                                              ?t rdfs:subClassOf* ?superclass .
-                                            }}
-                                            """)]
-                    if class_rule in objs:
+                    superclass_iter = (row[0] for row in target_graph.query("""
+                                        SELECT ?superclass
+                                        WHERE {{
+                                          {qname} rdf:type ?t .
+                                          ?t rdfs:subClassOf* ?superclass .
+                                        }}
+                                        """.format(qname=target_graph.qname(v))))
+                    if class_rule in superclass_iter:
                         found = True
                 if not found:
                     non_conformant = True
