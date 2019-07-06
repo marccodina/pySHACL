@@ -179,7 +179,12 @@ class Shape(object):
         for tc in target_classes:
             s = target_graph.subjects(RDF_type, tc)
             found_target_instances.update(s)
-            subc = target_graph.subjects(RDFS_subClassOf, tc)
+            subc = [a[0] for a in target_graph.query(f"""
+                            SELECT ?t
+                            WHERE {{
+                                ?t rdfs:subClassOf* {target_graph.qname(tc)}
+                            }}
+                            """)]
             for subclass in iter(subc):
                 if subclass == tc:
                     continue

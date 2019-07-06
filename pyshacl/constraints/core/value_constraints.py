@@ -84,18 +84,15 @@ class ClassConstraintComponent(ConstraintComponent):
                                    "Attempting to match Literal node {} to class of {} will fail."
                                    .format(v, class_rule))
                 else:
-                    objs = target_graph.objects(v, RDF_type)
-                    for ctype in iter(objs):
-                        if ctype == class_rule:
-                            found = True
-                            break
-                        # Note, this only ones _one_ level of subclass traversing.
-                        # For more levels, the whole target graph should be put through
-                        # a RDFS reasoning engine.
-                        subclasses = target_graph.objects(ctype, RDFS_subClassOf)
-                        if class_rule in iter(subclasses):
-                            found = True
-                            break
+                    objs = [a[0] for a in target_graph.query(f"""
+                                            SELECT ?superclass
+                                            WHERE {{
+                                              {target_graph.qname(v)} rdf:type ?t .
+                                              ?t rdfs:subClassOf* ?superclass .
+                                            }}
+                                            """)]
+                    if class_rule in objs:
+                        found = True
                 if not found:
                     non_conformant = True
                     rept = self.make_v_result(f, value_node=v)

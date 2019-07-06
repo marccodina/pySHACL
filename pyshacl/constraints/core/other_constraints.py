@@ -151,12 +151,22 @@ class ClosedConstraintComponent(ConstraintComponent):
         for f, value_nodes in focus_value_nodes.items():
             for v in value_nodes:
                 pred_obs = target_graph.predicate_objects(v)
+                parent_props = [a[0] for a in target_graph.query(f"""
+                    SELECT ?p
+                        WHERE {{
+                            {target_graph.qname(v)} rdf:type ?t .
+                            ?t rdfs:subClassOf* ?s .
+                            ?p rdfs:domain ?s
+                        }}
+                """)]
                 for p, o in pred_obs:
                     if (p, o) in self.ALWAYS_IGNORE:
                         continue
                     elif p in self.ignored_props:
                         continue
                     elif p in working_paths:
+                        continue
+                    elif p in parent_props:
                         continue
                     non_conformant = True
                     rept = self.make_v_result(f, value_node=o, result_path=p)
