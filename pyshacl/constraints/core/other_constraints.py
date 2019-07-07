@@ -3,10 +3,10 @@
 https://www.w3.org/TR/shacl/#core-components-others
 """
 import rdflib
-from rdflib.namespace import RDF, RDFS
 from pyshacl.constraints.constraint_component import ConstraintComponent
-from pyshacl.consts import RDF_type, SH, SH_property, SH_path
+from pyshacl.consts import SH, RDF_type, SH_path, SH_property
 from pyshacl.errors import ConstraintLoadError, ReportableRuntimeError
+from rdflib.namespace import RDF, RDFS
 
 SH_InConstraintComponent = SH.term('InConstraintComponent')
 SH_ClosedConstraintComponent = SH.term('ClosedConstraintComponent')
@@ -83,7 +83,6 @@ class ClosedConstraintComponent(ConstraintComponent):
     """
     ALWAYS_IGNORE = {(RDF_type, RDFS.term('Resource'))}
 
-
     def __init__(self, shape):
         super(ClosedConstraintComponent, self).__init__(shape)
         sg = self.shape.sg.graph
@@ -108,8 +107,6 @@ class ClosedConstraintComponent(ConstraintComponent):
             except ValueError:
                 continue
         self.property_shapes = list(self.shape.objects(SH_property))
-
-
 
     @classmethod
     def constraint_parameters(cls):
@@ -151,13 +148,20 @@ class ClosedConstraintComponent(ConstraintComponent):
         for f, value_nodes in focus_value_nodes.items():
             for v in value_nodes:
                 pred_obs = target_graph.predicate_objects(v)
-                parent_props = {row[0] for row in target_graph.query("""
-                    SELECT ?p
-                        WHERE {{
-                            {qname} rdf:type ?t .
-                            ?t rdfs:subClassOf* ?s .
-                            ?p rdfs:domain ?s .
-                        }}""".format(qname=target_graph.qname(v)))}
+                if isinstance(v, rdflib.term.URIRef):
+                    prefix, _, name = target_graph.compute_qname(v, generate=True)
+                    if prefix:
+                        parent_props = {row[0] for row in target_graph.query("""
+                            SELECT ?p
+                                WHERE {{
+                                    {qname} rdf:type ?t .
+                                    ?t rdfs:subClassOf* ?s .
+                                    ?p rdfs:domain ?s .
+                                }}""".format(qname=':'.join((prefix, name))))}
+                    else:
+                        parent_props = []
+                else:
+                    parent_props = []
                 for p, o in pred_obs:
                     if (p, o) in self.ALWAYS_IGNORE:
                         continue
@@ -190,7 +194,6 @@ class HasValueConstraintComponent(ConstraintComponent):
                 "HasValueConstraintComponent must have at least one sh:hasValue predicate.",
                 "https://www.w3.org/TR/shacl/#HasValueConstraintComponent")
         self.has_value_set = has_value_set
-
 
     @classmethod
     def constraint_parameters(cls):

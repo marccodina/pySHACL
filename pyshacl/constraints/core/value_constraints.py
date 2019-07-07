@@ -4,7 +4,7 @@ https://www.w3.org/TR/shacl/#core-components-value-type
 """
 import rdflib
 from datetime import date, time, datetime
-from rdflib.term import Literal
+from rdflib.term import Literal, URIRef
 from rdflib.namespace import RDF, XSD
 from pyshacl.constraints.constraint_component import ConstraintComponent
 from pyshacl.consts import SH, RDFS_subClassOf, RDF_type,\
@@ -84,13 +84,20 @@ class ClassConstraintComponent(ConstraintComponent):
                                    "Attempting to match Literal node {} to class of {} will fail."
                                    .format(v, class_rule))
                 else:
-                    superclass_iter = (row[0] for row in target_graph.query("""
-                                        SELECT ?superclass
-                                        WHERE {{
-                                          {qname} rdf:type ?t .
-                                          ?t rdfs:subClassOf* ?superclass .
-                                        }}
-                                        """.format(qname=target_graph.qname(v))))
+                    if isinstance(v, URIRef):
+                        prefix, _, name = target_graph.compute_qname(v, generate=True)
+                        if prefix:
+                            superclass_iter = (row[0] for row in target_graph.query("""
+                                                SELECT ?superclass
+                                                WHERE {{
+                                                  {qname} rdf:type ?t .
+                                                  ?t rdfs:subClassOf* ?superclass .
+                                                }}
+                                                """.format(qname=':'.join((prefix, name)))))
+                        else:
+                            superclass_iter = iter(target_graph.objects(v, RDF_type))
+                    else:
+                        superclass_iter = iter(target_graph.objects(v, RDF_type))
                     if class_rule in superclass_iter:
                         found = True
                 if not found:
