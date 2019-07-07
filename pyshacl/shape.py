@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import rdflib
 import logging
+import pyparsing
 from pyshacl.consts import *
 from pyshacl.errors import ShapeLoadError, ReportableRuntimeError, ConstraintLoadWarning, ConstraintLoadError
 from pyshacl.constraints import ALL_CONSTRAINT_PARAMETERS, \
@@ -179,13 +180,20 @@ class Shape(object):
         for tc in target_classes:
             s = target_graph.subjects(RDF_type, tc)
             found_target_instances.update(s)
-            subc = [a[0] for a in target_graph.query(f"""
-                            SELECT ?t
-                            WHERE {{
-                                ?t rdfs:subClassOf* {target_graph.qname(tc)}
-                            }}
-                            """)]
-            for subclass in iter(subc):
+            if isinstance(tc, rdflib.term.URIRef):
+                prefix, _, name = target_graph.compute_qname(tc, generate=True)
+                if prefix:
+                    subclass_iter = (row[0] for row in target_graph.query("""
+                                        SELECT ?subclass
+                                        WHERE {{
+                                            ?subclass rdfs:subClassOf* {qname}
+                                        }}
+                                        """.format(qname=':'.join((prefix, name)))))
+                else:
+                    subclass_iter = iter(target_graph.subjects(RDFS_subClassOf, tc))
+            else:
+                subclass_iter = iter(target_graph.subjects(RDFS_subClassOf, tc))
+            for subclass in subclass_iter:
                 if subclass == tc:
                     continue
                 s1 = target_graph.subjects(RDF_type, subclass)
