@@ -159,9 +159,9 @@ class ClosedConstraintComponent(ConstraintComponent):
                                     ?p rdfs:domain ?s .
                                 }}""".format(qname=':'.join((prefix, name))))}
                     else:
-                        parent_props = []
+                        parent_props = {}
                 else:
-                    parent_props = []
+                    parent_props = {}
                 for p, o in pred_obs:
                     if (p, o) in self.ALWAYS_IGNORE:
                         continue
