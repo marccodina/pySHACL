@@ -259,6 +259,7 @@ class SelectConstraintValidator(SPARQLConstraintComponentValidator):
                     except KeyError:
                         pass
             return violations
+        return {}
 
 
 class BoundShapeValidatorComponent(ConstraintComponent):
