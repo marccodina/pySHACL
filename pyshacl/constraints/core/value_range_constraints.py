@@ -46,7 +46,7 @@ class MinExclusiveConstraintComponent(ConstraintComponent):
     def shacl_constraint_class(cls):
         return SH_MinExclusiveConstraintComponent
 
-    def evaluate(self, target_graph, focus_value_nodes):
+    def evaluate(self, target_graph, focus_value_nodes, _evaluation_path):
         """
 
         :type focus_value_nodes: dict
@@ -56,12 +56,12 @@ class MinExclusiveConstraintComponent(ConstraintComponent):
         non_conformant = False
 
         for m_val in self.min_vals:
-            _nc, _r = self._evaluate_min_rule(m_val, focus_value_nodes)
+            _nc, _r = self._evaluate_min_rule(m_val, target_graph, focus_value_nodes)
             non_conformant = non_conformant or _nc
             reports.extend(_r)
         return (not non_conformant), reports
 
-    def _evaluate_min_rule(self, m_val, f_v_dict):
+    def _evaluate_min_rule(self, m_val, target_graph, f_v_dict):
         reports = []
         non_conformant = False
         assert isinstance(m_val, rdflib.Literal)
@@ -92,7 +92,7 @@ class MinExclusiveConstraintComponent(ConstraintComponent):
                         "Not sure how to compare anything else.")
                 if not flag:
                     non_conformant = True
-                    rept = self.make_v_result(f, value_node=v)
+                    rept = self.make_v_result(target_graph, f, value_node=v)
                     reports.append(rept)
         return non_conformant, reports
 
@@ -125,7 +125,7 @@ class MinInclusiveConstraintComponent(ConstraintComponent):
     def shacl_constraint_class(cls):
         return SH_MinInclusiveConstraintComponent
 
-    def evaluate(self, target_graph, focus_value_nodes):
+    def evaluate(self, target_graph, focus_value_nodes, _evaluation_path):
         """
 
         :type focus_value_nodes: dict
@@ -135,12 +135,12 @@ class MinInclusiveConstraintComponent(ConstraintComponent):
         non_conformant = False
 
         for m_val in self.min_vals:
-            _nc, _r = self._evaluate_min_rule(m_val, focus_value_nodes)
+            _nc, _r = self._evaluate_min_rule(m_val, target_graph, focus_value_nodes)
             non_conformant = non_conformant or _nc
             reports.extend(_r)
         return (not non_conformant), reports
 
-    def _evaluate_min_rule(self, m_val, f_v_dict):
+    def _evaluate_min_rule(self, m_val, target_graph, f_v_dict):
         reports = []
         non_conformant = False
         assert isinstance(m_val, rdflib.Literal)
@@ -171,7 +171,7 @@ class MinInclusiveConstraintComponent(ConstraintComponent):
                         "Not sure how to compare anything else.")
                 if not flag:
                     non_conformant = True
-                    rept = self.make_v_result(f, value_node=v)
+                    rept = self.make_v_result(target_graph, f, value_node=v)
                     reports.append(rept)
         return non_conformant, reports
 
@@ -205,7 +205,7 @@ class MaxExclusiveConstraintComponent(ConstraintComponent):
     def shacl_constraint_class(cls):
         return SH_MaxExclusiveConstraintComponent
 
-    def evaluate(self, target_graph, focus_value_nodes):
+    def evaluate(self, target_graph, focus_value_nodes, _evaluation_path):
         """
 
         :type focus_value_nodes: dict
@@ -215,12 +215,12 @@ class MaxExclusiveConstraintComponent(ConstraintComponent):
         non_conformant = False
 
         for m_val in self.max_vals:
-            _nc, _r = self._evaluate_max_rule(m_val, focus_value_nodes)
+            _nc, _r = self._evaluate_max_rule(m_val, target_graph, focus_value_nodes)
             non_conformant = non_conformant or _nc
             reports.extend(_r)
         return (not non_conformant), reports
 
-    def _evaluate_max_rule(self, m_val, f_v_dict):
+    def _evaluate_max_rule(self, m_val, target_graph, f_v_dict):
         reports = []
         non_conformant = False
         assert isinstance(m_val, rdflib.Literal)
@@ -251,7 +251,7 @@ class MaxExclusiveConstraintComponent(ConstraintComponent):
                         "Not sure how to compare anything else.")
                 if not flag:
                     non_conformant = True
-                    rept = self.make_v_result(f, value_node=v)
+                    rept = self.make_v_result(target_graph, f, value_node=v)
                     reports.append(rept)
         return non_conformant, reports
 
@@ -285,7 +285,7 @@ class MaxInclusiveConstraintComponent(ConstraintComponent):
     def shacl_constraint_class(cls):
         return SH_MaxInclusiveConstraintComponent
 
-    def evaluate(self, target_graph, focus_value_nodes):
+    def evaluate(self, target_graph, focus_value_nodes, _evaluation_path):
         """
 
         :type focus_value_nodes: dict
@@ -295,12 +295,12 @@ class MaxInclusiveConstraintComponent(ConstraintComponent):
         non_conformant = False
 
         for m_val in self.max_vals:
-            _nc, _r = self._evaluate_max_rule(m_val, focus_value_nodes)
+            _nc, _r = self._evaluate_max_rule(m_val, target_graph, focus_value_nodes)
             non_conformant = non_conformant or _nc
             reports.extend(_r)
         return (not non_conformant), reports
 
-    def _evaluate_max_rule(self, m_val, f_v_dict):
+    def _evaluate_max_rule(self, m_val, target_graph, f_v_dict):
         reports = []
         non_conformant = False
         assert isinstance(m_val, rdflib.Literal)
@@ -331,6 +331,6 @@ class MaxInclusiveConstraintComponent(ConstraintComponent):
                         "Not sure how to compare anything else.")
                 if not flag:
                     non_conformant = True
-                    rept = self.make_v_result(f, value_node=v)
+                    rept = self.make_v_result(target_graph, f, value_node=v)
                     reports.append(rept)
         return non_conformant, reports

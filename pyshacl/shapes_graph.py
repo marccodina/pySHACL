@@ -7,26 +7,45 @@ from pyshacl.constraints.core.shape_based_constraints import SH_qualifiedValueSh
 from pyshacl.constraints.sparql.sparql_based_constraint_components import SH_ConstraintComponent, SH_parameter, \
     SH_optional, SPARQLConstraintComponent
 from pyshacl.consts import RDF_type, SH_path, SH_NodeShape, SH_PropertyShape, SH_targetClass, SH_targetNode, \
-    SH_targetObjectsOf, SH_targetSubjectsOf, SH_property, SH_node, RDFS_subClassOf
+    SH_targetObjectsOf, SH_targetSubjectsOf, SH_property, SH_node, RDFS_subClassOf, RDFS_Class, OWL_Class, \
+    OWL_DatatypeProperty, RDF_Property
 from pyshacl.errors import ShapeLoadError, ConstraintLoadError
 from pyshacl.shape import Shape
 
 
-class SHACLGraph(object):
+class ShapesGraph(object):
+    system_triples = [
+        (OWL_Class, RDFS_subClassOf, RDFS_Class),
+        (OWL_DatatypeProperty, RDFS_subClassOf, RDF_Property)
+    ]
+
     def __init__(self, graph, logger=None):
         """
-
+        ShapesGraph
         :param graph:
         :type graph: rdflib.Graph
+        :param logger:
+        :type logger: logging.Logger|None
         """
-        assert isinstance(graph, rdflib.Graph)
+        assert isinstance(graph, (rdflib.Dataset, rdflib.ConjunctiveGraph, rdflib.Graph))
         self.graph = graph
+        if isinstance(self.graph, rdflib.Dataset):
+            self.graph.default_union = True
         if logger is None:
             logger = logging.getLogger(__name__)
         self.logger = logger
         self._node_shape_cache = {}
         self._shapes = None
         self._custom_constraints = None
+        self._add_system_triples()
+
+    def _add_system_triples(self):
+        if isinstance(self.graph, (rdflib.Dataset, rdflib.ConjunctiveGraph)):
+            g = next(iter(self.graph.contexts()))
+        else:
+            g = self.graph
+        for t in self.system_triples:
+            g.add(t)
 
     def subjects(self, p, o):
         return self.graph.subjects(p, o)
@@ -116,6 +135,10 @@ class SHACLGraph(object):
             self._build_node_shape_cache()
         return self._node_shape_cache.values()
 
+    def lookup_shape_from_node(self, node):
+        # This will throw a KeyError if it is not found. This is intentionally not caught here.
+        return self._node_shape_cache[node]
+
     """
     A shape is an IRI or blank node s that fulfills at least one of the following conditions in the shapes graph:
 
@@ -170,6 +193,14 @@ class SHACLGraph(object):
                 set(has_target_objects_of).union(
                     set(has_target_subjects_of))))
 
+        # implicit shapes: their subjects must be shapes
+        subject_of_property = {s for s, o in g.subject_objects(SH_property)}
+        subject_of_node = {s for s, o in g.subject_objects(SH_node)}
+        subject_shapes = subject_shapes.union(
+            set(subject_of_property).union(
+                set(subject_of_node)))
+
+        # shape-expecting properties, their values must be shapes.
         value_of_property = {o for s, o in g.subject_objects(SH_property)}
         value_of_node = {o for s, o in g.subject_objects(SH_node)}
         value_of_not = {o for s, o in g.subject_objects(SH_not)}

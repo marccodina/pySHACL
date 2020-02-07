@@ -29,7 +29,7 @@ $ deactivate
 For command line use:  
 _(these example commandline instructions are for a Linux/Unix based OS)_  
 ```bash
-pyshacl -s /path/to/shapesGraph.ttl -m -i rdfs -f human /path/to/dataGraph.ttl
+pyshacl -s /path/to/shapesGraph.ttl -m -i rdfs -a -f human /path/to/dataGraph.ttl
 ```
 Where
  - `-s` is an (optional) path to the shapes graph to use  
@@ -37,6 +37,7 @@ Where
  - `-i` is the pre-inferencing option  
  - `-f` is the ValidationReport output format (`human` = human-readable validation report)  
  - `-m` enable the meta-shacl feature  
+ - `-a` enable SHACL Advanced Features
 
 System exit codes are:  
 `0` = DataGraph is Conformant  
@@ -47,7 +48,7 @@ System exit codes are:
 Full CLI Usage options:
 ```bash
 usage: pyshacl [-h] [-s [SHACL]] [-e [ONT]] [-i {none,rdfs,owlrl,both}] [-m]
-               [--imports] [-a] [-d] [-f {human,turtle,xml,json-ld,nt,n3}]
+               [--imports] [--abort] [-a] [-d] [-f {human,turtle,xml,json-ld,nt,n3}]
                [-df {auto,turtle,xml,json-ld,nt,n3}]
                [-sf {auto,turtle,xml,json-ld,nt,n3}]
                [-ef {auto,turtle,xml,json-ld,nt,n3}] [-o [OUTPUT]]
@@ -72,9 +73,11 @@ optional arguments:
                         shacl Shapes Graph before before validating the Data
                         Graph.
   --imports             Allow import of sub-graphs defined in statements with
-                        ow:imports.
-  -a, --abort           Abort on first error.
-  -d, --debug           Output additional runtime messages.
+                        owl:import.
+  -a, --advanced        Enable support for SHACL Advanced Features.
+  --abort               Abort on first error.
+  -d, --debug           Output additional runtime messages, including violations that didn't 
+                        lead to non-conformance.
   -f {human,turtle,xml,json-ld,nt,n3}, --format {human,turtle,xml,json-ld,nt,n3}
                         Choose an output format. Default is "human".
   -df {auto,turtle,xml,json-ld,nt,n3}, --data-file-format {auto,turtle,xml,json-ld,nt,n3}
@@ -107,9 +110,10 @@ Where:
 Options are 'rdfs', 'owlrl', 'both', or 'none'. The default is 'none'.
 * `abort_on_error` (optional) a Python `bool` value to indicate whether or not the program should abort after encountering a validation error or to continue. Default is to continue.
 * `meta_shacl` (optional) a Python `bool` value to indicate whether or not the program should enable the Meta-SHACL feature. Default is False.
-* `debug` (optional) a Python `bool` value to indicate whether or not the program should emit debugging output text. Default is False.
+* `debug` (optional) a Python `bool` value to indicate whether or not the program should emit debugging output text, including violations that didn't lead to non-conformance overall. So when debug is True don't judge conformance by absense of violation messages. Default is False.
 
 Some other optional keyword variables available available on the `validate` function:
+* `advanced`: Enable SHACL Advanced Features
 * `data_graph_format`: Override the format detection for the given data graph source file.
 * `shacl_graph_format`: Override the format detection for the given shacl graph source file.
 * `ont_graph_format`: Override the format detection for the given extra ontology graph source file.
@@ -121,13 +125,13 @@ Some other optional keyword variables available available on the `validate` func
 Return value:  
 * a three-component `tuple` containing:
   * `conforms` a `bool`, indicating whether or not the `data_graph` conforms to the `shacl_graph`
-  * `results_graph` an rdflib `Graph` object built according to the SHACL specification's [Validation Report](https://www.w3.org/TR/shacl/#validation-report) semantics
+  * `results_graph` an rdflib `Graph` object built according to the SHACL specification's [Validation Report](https://www.w3.org/TR/shacl/#validation-report) structure
   * `results_text` python string representing a verbose textual representation of the [Validation Report](https://www.w3.org/TR/shacl/#validation-report) 
 
 ## Errors  
 Under certain circumstances pySHACL can produce a `Validation Failure`. This is a formal error defined by the SHACL specification and is required to be produced as a result of specific conditions within the SHACL graph.
-If the validator produces a `Validation Failure`, the `result_graph` variable returned by the `validate()` function will be an instance of `ValidationFailure`.
-Use see the `.message` attribute on that instance to get more information about the validation failure.  
+If the validator produces a `Validation Failure`, the `results_graph` variable returned by the `validate()` function will be an instance of `ValidationFailure`.
+See the `message` attribute on that instance to get more information about the validation failure.  
 
 Other errors the validator can generate:  
 - `ShapeLoadError`: This error is thrown when a SHACL Shape in the SHACL graph is in an invalid state and cannot be loaded into the validation engine.
@@ -141,7 +145,7 @@ In the case of `ShapeLoadError` and `ConstraintLoadError`, see the `str()` strin
 
 
 ## Compatibility  
-PySHACL is a Python3 library. For best compatibility use Python v3.5 or greater. This library _**does not work**_ on Python 2.7.x or below.
+PySHACL is a Python3 library. For best compatibility use Python v3.5 or greater. This library _**does not work**_ on Python v2.7.x or below. 
 
 
 ## Features  
@@ -175,7 +179,8 @@ Brisbane, Qld, Australia
 
 Lead Developer:  
 **Ashley Sommer**  
-*Software Engineer*  
+*Informatics Software Engineer*  
 CSIRO Land & Water, Environmental Informatics Group  
 Brisbane, Qld, Australia  
 <Ashley.Sommer@csiro.au>  
+<https://orcid.org/0000-0003-0590-0131>

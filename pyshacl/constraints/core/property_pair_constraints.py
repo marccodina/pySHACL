@@ -51,7 +51,7 @@ class EqualsConstraintComponent(ConstraintComponent):
     def shacl_constraint_class(cls):
         return SH_EqualsConstraintComponent
 
-    def evaluate(self, target_graph, focus_value_nodes):
+    def evaluate(self, target_graph, focus_value_nodes, _evaluation_path):
         """
 
         :type focus_value_nodes: dict
@@ -80,10 +80,10 @@ class EqualsConstraintComponent(ConstraintComponent):
             else:
                 continue
             for value_node in value_nodes_missing:
-                rept = self.make_v_result(f, value_node=value_node)
+                rept = self.make_v_result(target_graph, f, value_node=value_node)
                 reports.append(rept)
             for compare_value in compare_values_missing:
-                rept = self.make_v_result(f, value_node=compare_value)
+                rept = self.make_v_result(target_graph, f, value_node=compare_value)
                 reports.append(rept)
         return non_conformant, reports
 
@@ -119,7 +119,7 @@ class DisjointConstraintComponent(ConstraintComponent):
     def shacl_constraint_class(cls):
         return SH_DisjointConstraintComponent
 
-    def evaluate(self, target_graph, focus_value_nodes):
+    def evaluate(self, target_graph, focus_value_nodes, _evaluation_path):
         """
 
         :type focus_value_nodes: dict
@@ -146,7 +146,7 @@ class DisjointConstraintComponent(ConstraintComponent):
             else:
                 continue
             for common_node in common_nodes:
-                rept = self.make_v_result(f, value_node=common_node)
+                rept = self.make_v_result(target_graph, f, value_node=common_node)
                 reports.append(rept)
 
         return non_conformant, reports
@@ -187,7 +187,7 @@ class LessThanConstraintComponent(ConstraintComponent):
     def shacl_constraint_class(cls):
         return SH_LessThanConstraintComponent
 
-    def evaluate(self, target_graph, focus_value_nodes):
+    def evaluate(self, target_graph, focus_value_nodes, _evaluation_path):
         """
 
         :type focus_value_nodes: dict
@@ -236,18 +236,18 @@ class LessThanConstraintComponent(ConstraintComponent):
                         compare_value = str(compare_value)
                         compare_is_string = True
                     elif isinstance(compare_value, rdflib.Literal) and\
-                        isinstance(compare_value.value, str):
+                         isinstance(compare_value.value, str):
                         compare_value = compare_value.value
                         compare_is_string = True
                     if (value_is_string and not compare_is_string) or\
                        (compare_is_string and not value_is_string):
                         non_conformant = True
-                        rept = self.make_v_result(f, value_node=orig_value_node)
-                        reports.append(rept)
                     elif not value_node < compare_value:
                         non_conformant = True
-                        rept = self.make_v_result(f, value_node=orig_value_node)
-                        reports.append(rept)
+                    else:
+                        continue
+                    rept = self.make_v_result(target_graph, f, value_node=orig_value_node)
+                    reports.append(rept)
         return non_conformant, reports
 
 
@@ -286,7 +286,7 @@ class LessThanOrEqualsConstraintComponent(ConstraintComponent):
     def shacl_constraint_class(cls):
         return SH_LessThanOrEqualsConstraintComponent
 
-    def evaluate(self, target_graph, focus_value_nodes):
+    def evaluate(self, target_graph, focus_value_nodes, _evaluation_path):
         """
 
         :type focus_value_nodes: dict
@@ -341,10 +341,10 @@ class LessThanOrEqualsConstraintComponent(ConstraintComponent):
                     if (value_is_string and not compare_is_string) or\
                        (compare_is_string and not value_is_string):
                         non_conformant = True
-                        rept = self.make_v_result(f, value_node=orig_value_node)
-                        reports.append(rept)
                     elif not value_node <= compare_value:
                         non_conformant = True
-                        rept = self.make_v_result(f, value_node=orig_value_node)
-                        reports.append(rept)
+                    else:
+                        continue
+                    rept = self.make_v_result(target_graph, f, value_node=orig_value_node)
+                    reports.append(rept)
         return non_conformant, reports

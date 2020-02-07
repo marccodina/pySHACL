@@ -43,7 +43,22 @@ def get_rdf_from_web(url):
     return resp, known_format
 
 
-def load_from_source(source, g=None, rdf_format=None, do_owl_imports=False, import_chain=None):
+def load_from_source(source, g=None, rdf_format=None, multigraph=False, do_owl_imports=False, import_chain=None):
+    """
+
+    :param source:
+    :param g:
+    :type g: rdflib.Graph
+    :param rdf_format:
+    :type rdf_format: str
+    :param multigraph:
+    :type multigraph: bool
+    :param do_owl_imports:
+    :type do_owl_imports: bool|int
+    :param import_chain:
+    :type import_chain: dict
+    :return:
+    """
     source_is_graph = False
     source_is_open = False
     source_was_open = False
@@ -52,14 +67,14 @@ def load_from_source(source, g=None, rdf_format=None, do_owl_imports=False, impo
     filename = None
     public_id = None
     uri_prefix = None
-    is_imported_graph = do_owl_imports and isinstance(do_owl_imports, int) and \
-                        do_owl_imports > 1
-    if isinstance(source, rdflib.Graph):
+    is_imported_graph = do_owl_imports and isinstance(do_owl_imports, int) \
+                        and do_owl_imports > 1
+    if isinstance(source, (rdflib.Graph, rdflib.ConjunctiveGraph, rdflib.Dataset)):
         source_is_graph = True
         if g is None:
             g = source
         else:
-            raise RuntimeError("Cannot pass in both target=rdflib.Graph and g=graph.")
+            raise RuntimeError("Cannot pass in both target=rdflib.Graph/Dataset and g=graph.")
     elif isinstance(source, IOBase) and hasattr(source, 'read'):
         source_is_file = True
         if hasattr(source, 'closed'):
@@ -76,7 +91,7 @@ def load_from_source(source, g=None, rdf_format=None, do_owl_imports=False, impo
             public_id = source
             source_is_file = True
             filename = source[8:]
-        elif source.startswith('file://'):
+        elif not is_windows and source.startswith('file://'):
             public_id = source
             source_is_file = True
             filename = source[7:]
@@ -114,8 +129,8 @@ def load_from_source(source, g=None, rdf_format=None, do_owl_imports=False, impo
             source = source.encode('utf-8')
             source_is_bytes = True
     elif isinstance(source, bytes):
-        if source.startswith(b'file:///') or\
-           source.startswith(b'file://') or\
+        if (is_windows and source.startswith(b'file:///')) or \
+           (not is_windows and source.startswith(b'file://')) or \
            source.startswith(b'http:') or source.startswith(b'https:'):
             raise ValueError("file:// and http:// strings should be given as str, not bytes.")
         first_char = source[0:1]
@@ -132,9 +147,9 @@ def load_from_source(source, g=None, rdf_format=None, do_owl_imports=False, impo
     else:
         raise ValueError("Cannot determine the format of the input graph")
     if g is None:
-        g = rdflib.Graph()
+        g = rdflib.Dataset() if multigraph else rdflib.Graph()
     else:
-        if not isinstance(g, rdflib.Graph):
+        if not isinstance(g, (rdflib.Graph, rdflib.Dataset, rdflib.ConjunctiveGraph)):
             raise RuntimeError("Passing in g must be a Graph.")
     if filename:
         if filename.endswith('.ttl'):
@@ -145,6 +160,10 @@ def load_from_source(source, g=None, rdf_format=None, do_owl_imports=False, impo
             rdf_format = rdf_format or 'n3'
         elif filename.endswith('.json'):
             rdf_format = rdf_format or 'json-ld'
+        elif filename.endswith('.nq') or filename.endswith('.nquads'):
+            rdf_format = rdf_format or 'nquads'
+        elif filename.endswith('.trig'):
+            rdf_format = rdf_format or 'trig'
         elif filename.endswith('.xml') or filename.endswith('.rdf'):
             rdf_format = rdf_format or 'xml'
     if source_is_file and filename and not source_is_open:
@@ -250,37 +269,55 @@ def load_from_source(source, g=None, rdf_format=None, do_owl_imports=False, impo
             root_id = rdflib.URIRef(public_id) if public_id else None
         done_imports = 0
         if root_id is not None:
-            owl_imports = list(g.objects(root_id, rdflib.OWL.imports))
-            if len(owl_imports) > 0:
-                import_chain.append(root_id)
-            for o in owl_imports:
-                if o in import_chain:
-                    continue
-                load_from_source(o, g=g, do_owl_imports=do_owl_imports + 1, import_chain=import_chain)
-                done_imports += 1
-        if done_imports < 1 and public_id is not None and root_id != public_id:
-            public_id_uri = rdflib.URIRef(public_id)
-            owl_imports = list(g.objects(public_id_uri, rdflib.OWL.imports))
-            if len(owl_imports) > 0:
-                import_chain.append(public_id_uri)
-            for o in owl_imports:
-                if o in import_chain:
-                    continue
-                load_from_source(o, g=g, do_owl_imports=do_owl_imports + 1, import_chain=import_chain)
-                done_imports += 1
-        if done_imports < 1:
-            ontologies = g.subjects(rdflib.RDF.type, rdflib.OWL.Ontology)
-            for ont in ontologies:
-                if ont == root_id or ont == public_id:
-                    continue
-                if ont in import_chain:
-                    continue
-                owl_imports = list(g.objects(ont, rdflib.OWL.imports))
+            if isinstance(g, (rdflib.ConjunctiveGraph, rdflib.Dataset)):
+                gs = list(g.contexts())
+            else:
+                gs = [g]
+            for ng in gs:
+                owl_imports = list(ng.objects(root_id, rdflib.OWL.imports))
                 if len(owl_imports) > 0:
-                    import_chain.append(ont)
+                    import_chain.append(root_id)
                 for o in owl_imports:
                     if o in import_chain:
                         continue
-                    load_from_source(o, g=g, do_owl_imports=do_owl_imports + 1, import_chain=import_chain)
+                    load_from_source(o, g=g, multigraph=multigraph,
+                                     do_owl_imports=do_owl_imports + 1, import_chain=import_chain)
                     done_imports += 1
+        if done_imports < 1 and public_id is not None and root_id != public_id:
+            public_id_uri = rdflib.URIRef(public_id)
+            if isinstance(g, (rdflib.ConjunctiveGraph, rdflib.Dataset)):
+                gs = list(g.contexts())
+            else:
+                gs = [g]
+            for ng in gs:
+                owl_imports = list(ng.objects(public_id_uri, rdflib.OWL.imports))
+                if len(owl_imports) > 0:
+                    import_chain.append(public_id_uri)
+                for o in owl_imports:
+                    if o in import_chain:
+                        continue
+                    load_from_source(o, g=g, multigraph=multigraph,
+                                     do_owl_imports=do_owl_imports + 1, import_chain=import_chain)
+                    done_imports += 1
+        if done_imports < 1:
+            if isinstance(g, (rdflib.ConjunctiveGraph, rdflib.Dataset)):
+                gs = list(g.contexts())
+            else:
+                gs = [g]
+            for ng in gs:
+                ontologies = ng.subjects(rdflib.RDF.type, rdflib.OWL.Ontology)
+                for ont in ontologies:
+                    if ont == root_id or ont == public_id:
+                        continue
+                    if ont in import_chain:
+                        continue
+                    owl_imports = list(ng.objects(ont, rdflib.OWL.imports))
+                    if len(owl_imports) > 0:
+                        import_chain.append(ont)
+                    for o in owl_imports:
+                        if o in import_chain:
+                            continue
+                        load_from_source(o, g=g, multigraph=multigraph,
+                                         do_owl_imports=do_owl_imports + 1, import_chain=import_chain)
+                        done_imports += 1
     return g

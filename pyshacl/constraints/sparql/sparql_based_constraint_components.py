@@ -5,8 +5,8 @@ https://www.w3.org/TR/shacl/#sparql-constraint-components
 import re
 import rdflib
 from pyshacl.constraints.constraint_component import ConstraintComponent
-from pyshacl.constraints.sparql.sparql_based_constraints import SH_select, SPARQLQueryHelper
-from pyshacl.consts import SH, RDF_type, SH_message
+from pyshacl.constraints.sparql.sparql_based_constraints import SPARQLQueryHelper
+from pyshacl.consts import SH, RDF_type, SH_message, SH_select
 from pyshacl.errors import ConstraintLoadError, ValidationFailure, ReportableRuntimeError
 
 SH_nodeValidator = SH.term('nodeValidator')
@@ -324,7 +324,7 @@ class BoundShapeValidatorComponent(ConstraintComponent):
         # TODO:coverage: this is never used for this constraint?
         return SH_ConstraintComponent
 
-    def evaluate(self, target_graph, focus_value_nodes):
+    def evaluate(self, target_graph, focus_value_nodes, _evaluation_path):
         """
         :type focus_value_nodes: dict
         :type target_graph: rdflib.Graph
@@ -356,18 +356,17 @@ class BoundShapeValidatorComponent(ConstraintComponent):
                 if isinstance(v, bool) and v is True:
                     # TODO:coverage: No test for when violation is `True`
                     rept = self.make_v_result(
-                        f, value_node=result_val, **rept_kwargs)
+                        target_graph, f, value_node=result_val, **rept_kwargs)
                 elif isinstance(v, tuple):
                     t, p, v = v
                     if v is None:
                         v = result_val
                     rept = self.make_v_result(
-                        t or f, value_node=v, result_path=p,
+                        target_graph, t or f, value_node=v, result_path=p,
                         **rept_kwargs)
                 else:
                     rept = self.make_v_result(
-                        f, value_node=v,
-                        **rept_kwargs)
+                        target_graph, f, value_node=v, **rept_kwargs)
                 reports.append(rept)
         return (not non_conformant), reports
 

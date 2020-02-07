@@ -58,7 +58,7 @@ class ClassConstraintComponent(ConstraintComponent):
     def shacl_constraint_class(cls):
         return SH_ClassConstraintComponent
 
-    def evaluate(self, target_graph, focus_value_nodes):
+    def evaluate(self, target_graph, focus_value_nodes, _evaluation_path):
         """
 
         :type focus_value_nodes: dict
@@ -102,7 +102,7 @@ class ClassConstraintComponent(ConstraintComponent):
                         found = True
                 if not found:
                     non_conformant = True
-                    rept = self.make_v_result(f, value_node=v)
+                    rept = self.make_v_result(target_graph, f, value_node=v)
                     reports.append(rept)
         return non_conformant, reports
 
@@ -141,7 +141,7 @@ class DatatypeConstraintComponent(ConstraintComponent):
     def shacl_constraint_class(cls):
         return SH_DatatypeConstraintComponent
 
-    def evaluate(self, target_graph, focus_value_nodes):
+    def evaluate(self, target_graph, focus_value_nodes, _evaluation_path):
         """
 
         :type focus_value_nodes: dict
@@ -169,7 +169,7 @@ class DatatypeConstraintComponent(ConstraintComponent):
                                             .format(v, dtype_rule))
                 if not matches:
                     non_conformant = True
-                    rept = self.make_v_result(f, value_node=v)
+                    rept = self.make_v_result(target_graph, f, value_node=v)
                     reports.append(rept)
         return (not non_conformant), reports
 
@@ -227,7 +227,7 @@ class NodeKindConstraintComponent(ConstraintComponent):
     def shacl_constraint_class(cls):
         return SH_NodeKindConstraintComponent
 
-    def evaluate(self, target_graph, focus_value_nodes):
+    def evaluate(self, target_graph, focus_value_nodes, _evaluation_path):
         """
 
         :type focus_value_nodes: dict
@@ -250,7 +250,7 @@ class NodeKindConstraintComponent(ConstraintComponent):
                         match = True
                 if not match:
                     non_conformant = True
-                    rept = self.make_v_result(f, value_node=v)
+                    rept = self.make_v_result(target_graph, f, value_node=v)
                     reports.append(rept)
         return (not non_conformant), reports
 

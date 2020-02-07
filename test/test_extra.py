@@ -5,6 +5,8 @@
 # The need for these tests are discovered by doing coverage checks and these
 # are added as required.
 import os
+import re
+
 from pyshacl import validate
 from pyshacl.errors import ReportableRuntimeError
 
@@ -36,10 +38,21 @@ exOnt:hasPet a rdf:Property ;
 
 exOnt:nlegs a rdf:Property ;
     rdfs:domain exOnt:Animal ;
-    rdfs:range exOnt:integer .
+    rdfs:range xsd:integer .
+
+exOnt:Teacher a rdfs:Class ;
+    rdfs:comment "A Human who is a teacher."@en ;
+    rdfs:subClassOf exOnt:Human .
+
+exOnt:PreschoolTeacher a rdfs:Class ;
+    rdfs:comment "A Teacher who teaches preschool."@en ;
+    rdfs:subClassOf exOnt:Teacher .
 
 exOnt:Lizard a rdfs:Class ;
     rdfs:subClassOf exOnt:Pet .
+    
+exOnt:Goanna a rdfs:Class ;
+    rdfs:subClassOf exOnt:Lizard .
 
 """
 
@@ -84,12 +97,12 @@ data_file_text = """
 @prefix exOnt: <http://example.com/exOnt#> .
 @prefix ex: <http://example.com/ex#> .
 
-ex:Human1 rdf:type exOnt:Human ;
+ex:Human1 rdf:type exOnt:PreschoolTeacher ;
     rdf:label "Amy" ;
     exOnt:nLegs "2"^^xsd:integer ;
     exOnt:hasPet ex:Pet1 .
 
-ex:Pet1 rdf:type exOnt:Lizard ;
+ex:Pet1 rdf:type exOnt:Goanna ;
     rdf:label "Sebastian" ;
     exOnt:nLegs "4"^^xsd:integer .
 """
@@ -100,16 +113,39 @@ data_file_text_bad = """
 @prefix exOnt: <http://example.com/exOnt#> .
 @prefix ex: <http://example.com/ex#> .
 
-ex:Human1 rdf:type exOnt:Human ;
+ex:Human1 rdf:type exOnt:PreschoolTeacher ;
     rdf:label "Amy" ;
     exOnt:nLegs "2"^^xsd:integer ;
     exOnt:hasPet "Sebastian"^^xsd:string .
 
-ex:Pet1 rdf:type exOnt:Lizard ;
+ex:Pet1 rdf:type exOnt:Goanna ;
     rdf:label "Sebastian" ;
-    exOnt:nLegs "g"^^xsd:string .
+    exOnt:nLegs "four"^^xsd:string .
 """
 
+def test_validate_with_ontology():
+    res = validate(data_file_text, shacl_graph=shacl_file_text,
+                   data_graph_format='turtle', shacl_graph_format='turtle',
+                   ont_graph=ontology_file_text,  ont_graph_format="turtle",
+                   inference='both', debug=True)
+    conforms, graph, string = res
+    assert conforms
+
+def test_validate_with_ontology_fail1():
+    res = validate(data_file_text_bad, shacl_graph=shacl_file_text,
+                   data_graph_format='turtle', shacl_graph_format='turtle',
+                   ont_graph=ontology_file_text,  ont_graph_format="turtle",
+                   inference='both', debug=True)
+    conforms, graph, string = res
+    assert not conforms
+
+def test_validate_with_ontology_fail2():
+    res = validate(data_file_text_bad, shacl_graph=shacl_file_text,
+                   data_graph_format='turtle', shacl_graph_format='turtle',
+                   ont_graph=ontology_file_text, ont_graph_format="turtle",
+                   inference=None, debug=True)
+    conforms, graph, string = res
+    assert conforms
 
 def test_metashacl_pass():
     res = validate(data_file_text, shacl_graph=shacl_file_text,
@@ -164,6 +200,54 @@ ex:AnimalShape a sh:NodeShape ;
         did_error = True
     assert did_error
 
+data_file_text_bn = """
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix exOnt: <http://example.com/exOnt#> .
+@prefix ex: <http://example.com/ex#> .
+
+ex:Student1 exOnt:hasTeacher [
+    rdf:type exOnt:PreschoolTeacher ;
+    rdf:label "Amy" ;
+    exOnt:nLegs "2"^^xsd:integer ;
+    exOnt:hasPet ex:Pet1 ]
+.
+
+ex:Pet1 rdf:type exOnt:Goanna ;
+    rdf:label "Sebastian" ;
+    exOnt:nLegs "4"^^xsd:integer .
+"""
+
+data_file_text_bad_bn = """
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix exOnt: <http://example.com/exOnt#> .
+@prefix ex: <http://example.com/ex#> .
+
+ex:Student1 exOnt:hasTeacher [
+    rdf:type exOnt:PreschoolTeacher ;
+    rdf:label "Amy" ;
+    exOnt:nLegs "2"^^xsd:integer ;
+    exOnt:hasPet "Sebastian"^^xsd:string ]
+.
+
+ex:Pet1 rdf:type exOnt:Goanna ;
+    rdf:label "Sebastian" ;
+    exOnt:nLegs "four"^^xsd:string .
+"""
+
+def test_blank_node_string_generation():
+
+    res = validate(data_file_text_bad_bn, shacl_graph=shacl_file_text,
+                   data_graph_format='turtle', shacl_graph_format='turtle',
+                   ont_graph=ontology_file_text,  ont_graph_format="turtle",
+                   inference='rdfs', debug=True)
+    conforms, graph, string = res
+    assert not conforms
+    rx = r"^\s*Focus Node\:\s+\[.+rdf:type\s+.+exOnt\:PreschoolTeacher.*\]$"
+    matches = re.search(rx, string, flags=re.MULTILINE)
+    assert matches
+
 
 def test_serialize_report_graph():
     res = validate(data_file_text, shacl_graph=shacl_file_text,
@@ -173,6 +257,84 @@ def test_serialize_report_graph():
     conforms, graph, string = res
     assert isinstance(graph, (str, bytes))
 
+shacl_file_property_shapes_text = """\
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix exShape: <http://example.com/exShape#> .
+@prefix exOnt: <http://example.com/exOnt#> .
+
+<http://example.com/exShape> a owl:Ontology ;
+    rdfs:label "Example Shapes File"@en .
+
+exShape:HumanHasPetShape a sh:PropertyShape ;
+    sh:class exOnt:Pet ;
+    sh:path exOnt:hasPet ;
+    sh:targetClass exOnt:Human .
+
+exShape:HumanHasLegsShape a sh:PropertyShape ;
+    sh:datatype xsd:integer ;
+    sh:path exOnt:nLegs ;
+    sh:maxInclusive 2 ;
+    sh:minInclusive 2 ;
+    sh:targetClass exOnt:Human .
+
+exShape:PetHasLegsShape a sh:PropertyShape ;
+    sh:datatype xsd:integer ;
+    sh:path exOnt:nLegs ;
+    sh:maxInclusive 4 ;
+    sh:minInclusive 1 ;
+    sh:targetClass exOnt:Animal .
+"""
+
+def test_property_shape_focus():
+    res = validate(data_file_text, shacl_graph=shacl_file_property_shapes_text,
+                   data_graph_format='turtle', shacl_graph_format='turtle',
+                   ont_graph=ontology_file_text,  ont_graph_format="turtle",
+                   inference='rdfs', debug=True)
+    conforms, graph, string = res
+    assert conforms
+
+def test_property_shape_focus_fail1():
+    res = validate(data_file_text_bad, shacl_graph=shacl_file_property_shapes_text,
+                   data_graph_format='turtle', shacl_graph_format='turtle',
+                   ont_graph=ontology_file_text,  ont_graph_format="turtle",
+                   inference='rdfs', debug=True)
+    conforms, graph, string = res
+    assert not conforms
+
+web_d1_ttl = """\
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix exOnt: <http://example.com/exOnt#> .
+@prefix ex: <http://example.com/ex#> .
+
+ex:Human1 rdf:type exOnt:Human ;
+    rdf:label "Amy" ;
+    exOnt:nLegs "2"^^xsd:integer ;
+    exOnt:hasPet ex:Pet1 .
+
+ex:Pet1 rdf:type exOnt:Lizard ;
+    rdf:label "Sebastian" ;
+    exOnt:nLegs "4"^^xsd:integer .
+"""
+web_d2_ttl = """\
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix exOnt: <http://example.com/exOnt#> .
+@prefix ex: <http://example.com/ex#> .
+
+ex:Human1 rdf:type exOnt:Human ;
+    rdf:label "Amy" ;
+    exOnt:nLegs "2"^^xsd:integer ;
+    exOnt:hasPet "Sebastian"^^xsd:string .
+
+ex:Pet1 rdf:type exOnt:Lizard ;
+    rdf:label "Sebastian" ;
+    exOnt:nLegs "g"^^xsd:string .
+"""
 
 def test_web_retrieve():
     DEB_BUILD_ARCH = os.environ.get('DEB_BUILD_ARCH', None)
@@ -183,7 +345,7 @@ def test_web_retrieve():
         return True
     shacl_file = "https://raw.githubusercontent.com/RDFLib/pySHACL/master/test/resources/cmdline_tests/s1.ttl"
     ont_file = "https://raw.githubusercontent.com/RDFLib/pySHACL/master/test/resources/cmdline_tests/o1.ttl"
-    res = validate(data_file_text, shacl_graph=shacl_file, data_graph_format='turtle',
+    res = validate(web_d1_ttl, shacl_graph=shacl_file, data_graph_format='turtle',
                    shacl_graph_format='turtle', ont_graph=ont_file,
                    ont_graph_format="turtle", inference='both', debug=True)
     conforms, graph, string = res
@@ -199,7 +361,7 @@ def test_web_retrieve_fail():
         return True
     shacl_file = "https://raw.githubusercontent.com/RDFLib/pySHACL/master/test/resources/cmdline_tests/s1.ttl"
     ont_file = "https://raw.githubusercontent.com/RDFLib/pySHACL/master/test/resources/cmdline_tests/o1.ttl"
-    res = validate(data_file_text_bad, shacl_graph=shacl_file, data_graph_format='turtle',
+    res = validate(web_d2_ttl, shacl_graph=shacl_file, data_graph_format='turtle',
                    shacl_graph_format='turtle', ont_graph=ont_file,
                    ont_graph_format="turtle", inference='both', debug=True)
     conforms, graph, string = res
@@ -230,7 +392,7 @@ def test_owl_imports():
         print("Cannot run owl:imports in debhelper tests.")
         assert True
         return True
-    res = validate(data_file_text, shacl_graph=my_partial_shapes_text, data_graph_format='turtle',
+    res = validate(web_d1_ttl, shacl_graph=my_partial_shapes_text, data_graph_format='turtle',
                    shacl_graph_format='turtle', ont_graph=my_partial_ont_text,
                    ont_graph_format="turtle", inference='both', debug=True, do_owl_imports=True)
     conforms, graph, string = res
@@ -246,7 +408,7 @@ def test_owl_imports_fail():
         assert True
         return True
 
-    res = validate(data_file_text_bad, shacl_graph=my_partial_shapes_text, data_graph_format='turtle',
+    res = validate(web_d2_ttl, shacl_graph=my_partial_shapes_text, data_graph_format='turtle',
                    shacl_graph_format='turtle', ont_graph=my_partial_ont_text,
                    ont_graph_format="turtle", inference='both', debug=True, do_owl_imports=True)
     conforms, graph, string = res
@@ -255,8 +417,15 @@ def test_owl_imports_fail():
 
 
 if __name__ == "__main__":
+    test_validate_with_ontology()
+    test_validate_with_ontology_fail1()
+    test_validate_with_ontology_fail2()
     test_metashacl_pass()
     test_metashacl_fail()
+    test_blank_node_string_generation()
+    test_property_shape_focus()
+    test_property_shape_focus_fail1()
     test_web_retrieve()
     test_serialize_report_graph()
     test_owl_imports()
+    test_owl_imports_fail()
