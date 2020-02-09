@@ -4,6 +4,10 @@ from decimal import Decimal
 import rdflib
 import logging
 import pyparsing
+import rdflib
+from boltons import cacheutils
+
+from pyshacl.constraints import ALL_CONSTRAINT_PARAMETERS, CONSTRAINT_PARAMETERS_MAP
 from pyshacl.consts import *
 from pyshacl.errors import ShapeLoadError, ReportableRuntimeError, ConstraintLoadWarning, ConstraintLoadError
 from pyshacl.constraints import ALL_CONSTRAINT_PARAMETERS, \
@@ -204,7 +208,7 @@ class Shape(object):
             result_set[c] = ct
         return result_set
 
-    def focus_nodes(self, data_graph):
+    def focus_nodes(self, data_graph, ont_graph=None):
         """
         The set of focus nodes for a shape may be identified as follows:
 
@@ -232,12 +236,8 @@ class Shape(object):
             if isinstance(tc, rdflib.term.URIRef):
                 prefix, _, name = data_graph.compute_qname(tc, generate=True)
                 if prefix:
-                    subclass_iter = (row[0] for row in data_graph.query("""
-                                        SELECT ?subclass
-                                        WHERE {{
-                                            ?subclass rdfs:subClassOf* {qname}
-                                        }}
-                                        """.format(qname=':'.join((prefix, name)))))
+                    types_graph = ont_graph or data_graph
+                    subclass_iter = (row[0] for row in _get_subclasses(':'.join((prefix, name)), types_graph))
                 else:
                     subclass_iter = iter(data_graph.subjects(RDFS_subClassOf, tc))
             else:
@@ -425,8 +425,7 @@ class Shape(object):
                 applicable_custom_constraints.add(c)
         return applicable_custom_constraints
 
-
-    def validate(self, target_graph, focus=None, bail_on_error=False, _evaluation_path=None):
+    def validate(self, target_graph, focus=None, bail_on_error=False, _evaluation_path=None, ont_graph=None):
         #assert isinstance(target_graph, rdflib.Graph)
         if self.deactivated:
             return True, []
@@ -434,7 +433,7 @@ class Shape(object):
             if not isinstance(focus, (tuple, list, set)):
                 focus = [focus]
         else:
-            focus = self.focus_nodes(target_graph)
+            focus = self.focus_nodes(target_graph, ont_graph)
         if len(focus) < 1:
             # Its possible for shapes to have _no_ focus nodes
             # (they are called in other ways)
@@ -483,8 +482,19 @@ class Shape(object):
             non_conformant = non_conformant or (not _is_conform)
             reports.extend(_r)
             run_count += 1
-        #if run_count < 1:
+        # if run_count < 1:
             #raise RuntimeError("A SHACL Shape should have at least one parameter or attached property shape.")
         return (not non_conformant), reports
 
 
+subclasses_cache = cacheutils.LRU(max_size=1000)
+
+
+@cacheutils.cachedmethod(subclasses_cache)
+def _get_subclasses(qualified_name, types_graph):
+    return types_graph.query("""
+                            SELECT ?subclass
+                            WHERE {{
+                                ?subclass rdfs:subClassOf* {qname}
+                            }}
+                            """.format(qname=qualified_name))

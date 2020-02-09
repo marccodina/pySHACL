@@ -186,7 +186,7 @@ class Validator(object):
                 #apply functions?
                 apply_rules(advanced['rules'], g)
             for s in shapes:
-                _is_conform, _reports = s.validate(g)
+                _is_conform, _reports = s.validate(g, ont_graph=self.ont_graph)
                 non_conformant = non_conformant or (not _is_conform)
                 reports.extend(_reports)
         v_report, v_text = self.create_validation_report(

@@ -1,3 +1,5 @@
 rdflib>=4.2.2
 rdflib-jsonld
 owlrl>=5.2.1
+boltons~=18.0
+
